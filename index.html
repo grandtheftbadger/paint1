@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Simple Paint Game</title>
+<style>
+  :root{
+    --bg:#f1f5f9;
+    --panel:#ffffff;
+    --accent:#2563eb;
+    --muted:#6b7280;
+  }
+  body{
+    font-family: Arial, Helvetica, sans-serif;
+    margin:0;
+    background:var(--bg);
+    display:flex;
+    min-height:100vh;
+    align-items:center;
+    justify-content:center;
+  }
+  .container{
+    width:950px;
+    max-width:98vw;
+    background:var(--panel);
+    box-shadow:0 6px 24px rgba(10,10,10,0.08);
+    border-radius:10px;
+    padding:16px;
+    box-sizing:border-box;
+  }
+  header{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  h1{font-size:18px;margin:0}
+  .controls{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .controls > *{height:36px}
+  .color-swatch{
+    width:32px;height:32px;border-radius:6px;border:1px solid #ccc;cursor:pointer;
+  }
+  input[type="range"]{width:140px}
+  button{
+    background:var(--accent);
+    color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;
+  }
+  button.secondary{background:#374151}
+  .left{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .board{
+    display:flex;
+    gap:12px;
+  }
+  .canvas-wrap{
+    background:white;border-radius:8px;padding:8px;flex:1;
+    display:flex;flex-direction:column;
+  }
+  canvas{
+    width:100%;
+    height:520px;
+    border-radius:6px;
+    background: #fff;
+    touch-action: none;
+    box-shadow: inset 0 0 0 1px #e6e6e6;
+    cursor:crosshair;
+  }
+  .sidebar{
+    width:260px;
+    min-width:200px;
+  }
+  .card{
+    background:#fafafa;border-radius:8px;padding:10px;margin-bottom:10px;
+  }
+  .muted{color:var(--muted);font-size:13px}
+  .word{
+    font-weight:600;font-size:18px;margin-top:6px;
+  }
+  .timer{font-size:20px;font-weight:700;color:#dc2626}
+  .actions{display:flex;gap:8px;margin-top:8px}
+  footer{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  @media (max-width:800px){
+    .board{flex-direction:column}
+    .sidebar{width:100%}
+    canvas{height:360px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="left">
+      <h1>Simple Paint Game</h1>
+      <div class="muted">Draw the word before time ends!</div>
+    </div>
+    <div class="right">
+      <div class="muted">Score: <span id="score">0</span></div>
+      <button id="newRoundBtn">New Round</button>
+      <button id="saveBtn" title="Save image">Save</button>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="color-swatch" id="colorBlack" style="background:#000"></div>
+      <div class="color-swatch" id="colorRed" style="background:#ef4444"></div>
+      <div class="color-swatch" id="colorGreen" style="background:#10b981"></div>
+      <div class="color-swatch" id="colorBlue" style="background:#3b82f6"></div>
+      <input type="color" id="colorPicker" title="Pick color" />
+    </div>
+
+    <label class="muted" style="display:flex;align-items:center;gap:8px;">
+      Brush
+      <input type="range" id="brushSize" min="1" max="60" value="8" />
+      <span id="brushValue">8</span>px
+    </label>
+
+    <button id="eraserBtn" class="secondary">Eraser</button>
+    <button id="clearBtn" class="secondary">Clear</button>
+  </div>
+
+  <div class="board">
+    <div class="canvas-wrap">
+      <canvas id="paintCanvas"></canvas>
+      <div style="display:flex;justify-content:space-between;padding:8px 2px;">
+        <div class="muted">Tip: hold mouse or touch to draw.</div>
+        <div class="muted">Right-click to clear last stroke</div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="card">
+        <div class="muted">Target word</div>
+        <div class="word" id="targetWord">Press New Round</div>
+        <div style="margin-top:8px;" class="muted">Time left: <span class="timer" id="timeLeft">--</span></div>
+        <div class="actions">
+          <button id="startBtn">Start</button>
+          <button id="giveUpBtn" class="secondary">Give Up</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted">Background</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <div class="color-swatch" id="bgWhite" style="background:#ffffff;border:1px solid #ccc;"></div>
+          <div class="color-swatch" id="bgLight" style="background:#f8fafc;"></div>
+          <div class="color-swatch" id="bgYellow" style="background:#fef3c7;"></div>
+          <div class="color-swatch" id="bgBlue" style="background:#e0f2fe;"></div>
+          <input type="color" id="bgPicker" title="Pick background color" />
+        </div>
+        <div style="margin-top:8px;" class="actions">
+          <button id="bgClearBtn" class="secondary" title="Remove background (transparent)">Transparent</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted">Hints</div>
+        <ul id="hintsList" style="margin:6px 0 0 16px;padding:0;color:#374151">
+          <li>Draw quickly.</li>
+          <li>Use eraser to correct.</li>
+          <li>Save your drawing.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>Made for learning. Good luck!</footer>
+</div>
+
+<script>
+(function(){
+  // Canvas setup
+  const canvas = document.getElementById('paintCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let deviceRatio = window.devicePixelRatio || 1;
+
+  // Background state
+  // backgroundColor: null means transparent; otherwise a CSS color string
+  let backgroundColor = null;
+
+  function resizeCanvas(){
+    deviceRatio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    // save current drawing as image
+    const saved = canvasToImage();
+    canvas.width = Math.floor(rect.width * deviceRatio);
+    canvas.height = Math.floor(rect.height * deviceRatio);
+    ctx.setTransform(deviceRatio, 0, 0, deviceRatio, 0, 0);
+    // clear and redraw background + saved image
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(backgroundColor){
+      ctx.save();
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0,0,rect.width,rect.height);
+      ctx.restore();
+    }
+    if(saved){
+      ctx.drawImage(saved, 0, 0, rect.width, rect.height);
+    }
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // Drawing state
+  let drawing = false;
+  let currentColor = '#000';
+  let brushSize = 8;
+  let isEraser = false;
+  let strokes = []; // store strokes snapshots (ImageData)
+  let lastPoint = null;
+
+  // Game state
+  const words = ['cat','tree','car','house','dog','sun','boat','apple','flower','cup','bird','fish','chair','book','star'];
+  let target = '';
+  let timer = null;
+  let timeLeft = 0;
+  let score = 0;
+
+  // Elements
+  const colorPicker = document.getElementById('colorPicker');
+  const brushSizeInput = document.getElementById('brushSize');
+  const brushValue = document.getElementById('brushValue');
+  const eraserBtn = document.getElementById('eraserBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const newRoundBtn = document.getElementById('newRoundBtn');
+  const startBtn = document.getElementById('startBtn');
+  const giveUpBtn = document.getElementById('giveUpBtn');
+  const targetWordEl = document.getElementById('targetWord');
+  const timeLeftEl = document.getElementById('timeLeft');
+  const scoreEl = document.getElementById('score');
+
+  // Background controls
+  const bgPicker = document.getElementById('bgPicker');
+  const bgClearBtn = document.getElementById('bgClearBtn');
+
+  // Color swatches
+  document.getElementById('colorBlack').addEventListener('click', ()=>selectColor('#000'));
+  document.getElementById('colorRed').addEventListener('click', ()=>selectColor('#ef4444'));
+  document.getElementById('colorGreen').addEventListener('click', ()=>selectColor('#10b981'));
+  document.getElementById('colorBlue').addEventListener('click', ()=>selectColor('#3b82f6'));
+  colorPicker.addEventListener('input', (e)=>selectColor(e.target.value));
+  function selectColor(c){
+    currentColor = c;
+    isEraser = false;
+    eraserBtn.textContent = 'Eraser';
+  }
+
+  // Background swatches
+  document.getElementById('bgWhite').addEventListener('click', ()=>setBackground('#ffffff'));
+  document.getElementById('bgLight').addEventListener('click', ()=>setBackground('#f8fafc'));
+  document.getElementById('bgYellow').addEventListener('click', ()=>setBackground('#fef3c7'));
+  document.getElementById('bgBlue').addEventListener('click', ()=>setBackground('#e0f2fe'));
+  bgPicker.addEventListener('input', (e)=>setBackground(e.target.value));
+  bgClearBtn.addEventListener('click', ()=>setBackground(null));
+
+  function setBackground(color){
+    // color null = transparent
+    backgroundColor = color;
+    // redraw: fill background then keep existing drawing
+    const rect = canvas.getBoundingClientRect();
+    // take snapshot of current pixels as image
+    const img = canvasToImage();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(color){
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.fillRect(0,0,rect.width,rect.height);
+      ctx.restore();
+    }
+    if(img){
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    }
+    // Also save snapshot so undo keeps background
+    saveSnapshot();
+  }
+
+  brushSizeInput.addEventListener('input', ()=>{
+    brushSize = parseInt(brushSizeInput.value,10);
+    brushValue.textContent = brushSize;
+  });
+
+  eraserBtn.addEventListener('click', ()=>{
+    isEraser = !isEraser;
+    eraserBtn.textContent = isEraser ? 'Drawing' : 'Eraser';
+  });
+
+  clearBtn.addEventListener('click', ()=>{
+    saveSnapshot();
+    // Clear to background (not transparent unless backgroundColor is null)
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(backgroundColor){
+      ctx.save();
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0,0,rect.width,rect.height);
+      ctx.restore();
+    }
+  });
+
+  saveBtn.addEventListener('click', ()=>{
+    // export includes background
+    // create a temporary export canvas at displayed size
+    const rect = canvas.getBoundingClientRect();
+    const out = document.createElement('canvas');
+    out.width = rect.width;
+    out.height = rect.height;
+    const outCtx = out.getContext('2d');
+    if(backgroundColor){
+      outCtx.fillStyle = backgroundColor;
+      outCtx.fillRect(0,0,out.width,out.height);
+    }
+    outCtx.drawImage(canvas, 0, 0, out.width, out.height);
+    const link = document.createElement('a');
+    link.download = (target || 'drawing') + '.png';
+    link.href = out.toDataURL();
+    link.click();
+  });
+
+  newRoundBtn.addEventListener('click', newRound);
+  startBtn.addEventListener('click', startTimer);
+  giveUpBtn.addEventListener('click', giveUp);
+
+  function pickWord(){
+    const i = Math.floor(Math.random()*words.length);
+    target = words[i];
+    targetWordEl.textContent = target;
+  }
+
+  function newRound(){
+    pickWord();
+    clearBoard();
+    stopTimer();
+    timeLeftEl.textContent = '--';
+  }
+
+  function startTimer(){
+    if(!target){ pickWord(); }
+    stopTimer();
+    timeLeft = 60; // seconds
+    timeLeftEl.textContent = timeLeft + 's';
+    timer = setInterval(()=>{
+      timeLeft--;
+      timeLeftEl.textContent = timeLeft + 's';
+      if(timeLeft <= 0){
+        endRound(false);
+      }
+    },1000);
+  }
+
+  function stopTimer(){
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+
+  function giveUp(){
+    endRound(false);
+  }
+
+  function endRound(won){
+    stopTimer();
+    if(won){
+      score++;
+      alert('Nice! You scored 1 point.');
+    } else {
+      alert('Time up or gave up. The word was: ' + target);
+    }
+    scoreEl.textContent = score;
+    target = '';
+    targetWordEl.textContent = 'Press New Round';
+    timeLeftEl.textContent = '--';
+  }
+
+  // Basic snapshot for undo
+  function saveSnapshot(){
+    try{
+      // store current canvas pixels including background
+      const rect = canvas.getBoundingClientRect();
+      // create a temporary canvas at displayed size
+      const temp = document.createElement('canvas');
+      temp.width = rect.width;
+      temp.height = rect.height;
+      const tctx = temp.getContext('2d');
+      if(backgroundColor){
+        tctx.fillStyle = backgroundColor;
+        tctx.fillRect(0,0,temp.width,temp.height);
+      }
+      // draw current canvas onto temp
+      tctx.drawImage(canvas, 0, 0, temp.width, temp.height);
+      // convert to image bitmap for smaller memory (if supported)
+      if(window.createImageBitmap){
+        createImageBitmap(temp).then(bitmap=>{
+          strokes.push(bitmap);
+          if(strokes.length>20) strokes.shift();
+        }).catch(()=>{ /* ignore */ });
+      } else {
+        const img = new Image();
+        img.src = temp.toDataURL();
+        strokes.push(img);
+        if(strokes.length>20) strokes.shift();
+      }
+    }catch(e){
+      // ignore
+    }
+  }
+  function undo(){
+    if(strokes.length===0) return;
+    const last = strokes.pop();
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(last instanceof ImageBitmap || last instanceof HTMLImageElement){
+      // draw image (may be asynchronous for Image)
+      if(last instanceof HTMLImageElement && !last.complete){
+        last.onload = ()=> {
+          if(backgroundColor){
+            ctx.save();
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0,0,rect.width,rect.height);
+            ctx.restore();
+          }
+          ctx.drawImage(last,0,0,rect.width,rect.height);
+        };
+      } else {
+        if(backgroundColor){
+          ctx.save();
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(0,0,rect.width,rect.height);
+          ctx.restore();
+        }
+        ctx.drawImage(last,0,0,rect.width,rect.height);
+      }
+    }
+  }
+
+  // Input handling (mouse + touch)
+  function getPos(e){
+    const rect = canvas.getBoundingClientRect();
+    if(e.touches && e.touches.length>0){
+      const t = e.touches[0];
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    } else {
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+  }
+
+  function startDraw(e){
+    if(e.button === 2) { // right-click = undo last stroke
+      undo();
+      return;
+    }
+    e.preventDefault();
+    drawing = true;
+    lastPoint = getPos(e);
+    saveSnapshot();
+    drawPoint(lastPoint.x, lastPoint.y);
+  }
+  function moveDraw(e){
+    if(!drawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    drawLine(lastPoint.x, lastPoint.y, p.x, p.y);
+    lastPoint = p;
+  }
+  function endDraw(e){
+    if(!drawing) return;
+    drawing = false;
+    lastPoint = null;
+  }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', moveDraw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+
+  canvas.addEventListener('touchstart', startDraw, {passive:false});
+  canvas.addEventListener('touchmove', moveDraw, {passive:false});
+  canvas.addEventListener('touchend', endDraw, {passive:false});
+  canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  // Drawing functions
+  function setContext(){
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = brushSize;
+    if(isEraser){
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = currentColor;
+    }
+  }
+
+  function drawPoint(x,y){
+    setContext();
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize/2, 0, Math.PI*2);
+    ctx.fillStyle = isEraser ? 'rgba(0,0,0,1)' : currentColor;
+    ctx.fill();
+  }
+
+  function drawLine(x1,y1,x2,y2){
+    setContext();
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Helper: convert current canvas to Image (at displayed size)
+  function canvasToImage(){
+    try{
+      const rect = canvas.getBoundingClientRect();
+      const temp = document.createElement('canvas');
+      temp.width = rect.width;
+      temp.height = rect.height;
+      const tctx = temp.getContext('2d');
+      if(backgroundColor){
+        tctx.fillStyle = backgroundColor;
+        tctx.fillRect(0,0,temp.width,temp.height);
+      }
+      tctx.drawImage(canvas, 0, 0, temp.width, temp.height);
+      const img = new Image();
+      img.src = temp.toDataURL();
+      return img;
+    }catch(e){
+      return null;
+    }
+  }
+
+  // Clear board
+  function clearBoard(){
+    saveSnapshot();
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(backgroundColor){
+      ctx.save();
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0,0,rect.width,rect.height);
+      ctx.restore();
+    }
+  }
+
+  // Small keyboard shortcuts
+  window.addEventListener('keydown',(e)=>{
+    if(e.key === 'z' && (e.ctrlKey || e.metaKey)){
+      undo();
+    } else if(e.key === 'c'){
+      clearBoard();
+    } else if(e.key === 's' && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      saveBtn.click();
+    }
+  });
+
+  // Initialize
+  resizeCanvas();
+  scoreEl.textContent = score;
+  timeLeftEl.textContent = '--';
+})();
+</script>
+</body>
+</html>
